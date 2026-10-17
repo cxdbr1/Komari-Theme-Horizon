@@ -1,9 +1,9 @@
 {
-  "name": "Horizon",
-  "short": "horizon",
+  "name": "Horizon Value",
+  "short": "horizon-value",
   "description": "基于 Dowsion 的 Horizon 主题二次开发。原项目：https://github.com/Dowsion-dev/Komari-Theme-Horizon",
   "author": "Dowsion",
-  "version": "1.9.4",
-  "url": "https://github.com/Dowsion-dev/Komari-Theme-Horizon",
+  "version": "1.9.4-value.1",
+  "url": "https://github.com/cxdbr1/Komari-Theme-Horizon",
   "preview": "preview.png"
 }

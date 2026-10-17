@@ -9,7 +9,7 @@
     <script>
       (function () {
         try {
-          var m = localStorage.getItem('komari-horizon-scheme') || 'system';
+          var m = localStorage.getItem('komari-horizon-value-scheme') || 'system';
           var dark = m === 'dark' || (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.className = dark ? 'dark' : 'light';
         } catch (e) {
@@ -17,7 +17,7 @@
         }
         // fonts chosen in the theme settings (cached by app.js), so text renders in the right face from the start
         var f = null;
-        try { f = JSON.parse(localStorage.getItem('komari-horizon-font') || 'null'); } catch (e) { f = null; }
+        try { f = JSON.parse(localStorage.getItem('komari-horizon-value-font') || 'null'); } catch (e) { f = null; }
         if (!f || !f.css) f = { css: ['https://fonts.googleapis.com/css2?display=swap&family=Plus+Jakarta+Sans:wght@400;500;600;700;800', 'https://fonts.googleapis.com/css2?display=swap&family=JetBrains+Mono:wght@400;500;600'] };
         for (var i = 0; i < f.css.length; i++) {
           var l = document.createElement('link');
@@ -26,7 +26,7 @@
         }
         if (f.faces && f.faces.length) { var st = document.createElement('style'); st.id = 'hz-font-faces'; st.textContent = f.faces.join('\n'); document.head.appendChild(st); }
         try {
-          var ic = localStorage.getItem('komari-horizon-favicon');
+          var ic = localStorage.getItem('komari-horizon-value-favicon');
           var il = document.querySelector('link[rel~="icon"]');
           if (ic && il) { il.setAttribute('data-default', il.getAttribute('href')); il.setAttribute('href', ic); }
         } catch (e) { /* ignore */ }
@@ -35,9 +35,9 @@
         if (f.mono) rs.setProperty('--font-mono', f.mono);
       })();
     </script>
-    <link rel="stylesheet" href="/assets/app.css?v=1.9.4" />
-    <script src="/assets/icons.js?v=1.9.4" defer></script>
-    <script src="/assets/app.js?v=1.9.4" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=1.9.4-value.1" />
+    <script src="/assets/icons.js?v=1.9.4-value.1" defer></script>
+    <script src="/assets/app.js?v=1.9.4-value.1" defer></script>
   </head>
   <body>
     <div id="root"></div>

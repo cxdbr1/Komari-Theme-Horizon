@@ -9,7 +9,7 @@
 
   window.KHorizonManage = function (page, KC) {
     var S = KC.S, esc = KC.esc, icon = KC.icon;
-    var theme = (S.settings && S.settings.theme) || 'horizon';
+    var theme = (S.settings && S.settings.theme) || 'horizon-value';
     var saved = KC.normalizeSettings(S.raw);
     var D = clone(saved);
     var ui = { msg: '', err: '', saving: false, nodeQuery: '', nodesOpen: false, importText: '', trafficQuery: '', cal: {} };

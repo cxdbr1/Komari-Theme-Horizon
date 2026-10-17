@@ -183,7 +183,7 @@
     var mono = T.fontMono === 'sans' ? sans : pick(FONT_MONO, T.fontMono, T.fontMonoUrl, T.fontMonoFamily, MONO_FALLBACK, 'Mono');
     return { css: css.filter(function (u, i, a) { return a.indexOf(u) === i; }), faces: faces, sans: sans, mono: mono };
   }
-  var FONT_KEY = 'komari-horizon-font';
+  var FONT_KEY = 'komari-horizon-value-font';
   function applyFonts(T, persist) {
     var plan = fontPlan(T), head = document.head;
     var want = {}; plan.css.forEach(function (u) { want[u] = true; });
@@ -199,7 +199,7 @@
   }
 
   // custom browser-tab icon (cached so index.html can set it before the first paint)
-  var ICON_KEY = 'komari-horizon-favicon', defaultIcon = null;
+  var ICON_KEY = 'komari-horizon-value-favicon', defaultIcon = null;
   function applyFavicon(T, persist) {
     var link = document.querySelector('link[rel~="icon"]');
     if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
@@ -355,7 +355,7 @@
     valueShown: {},
     lang: 'en'
   };
-  var LANG_KEY = 'komari-horizon-lang';
+  var LANG_KEY = 'komari-horizon-value-lang';
   function pickLang() {
     var saved = S.T.showLanguageToggle ? lsGet(LANG_KEY, '') : '';
     if (saved === 'zh' || saved === 'en') return saved;
@@ -363,7 +363,7 @@
     return /^zh/i.test(navigator.language || '') ? 'zh' : 'en';
   }
   function applyLangAttr() { document.documentElement.lang = S.lang === 'zh' ? 'zh-CN' : 'en'; }
-  var SCHEME_KEY = 'komari-horizon-scheme';
+  var SCHEME_KEY = 'komari-horizon-value-scheme';
   function isMobile() { return window.matchMedia('(max-width: 720px)').matches; }
   function canSeeCosts() { return S.me.logged_in || S.T.showCostsToGuests; }
 
@@ -611,7 +611,7 @@
     root.addEventListener('change', function (e) {
       if (e.target.id === 'sort-field') {
         S.sort.field = e.target.value; S.sort.dir = SORT_NATURAL[S.sort.field] || 'desc';
-        lsSet('komari-horizon-sort', S.sort.field + ':' + S.sort.dir);
+        lsSet('komari-horizon-value-sort', S.sort.field + ':' + S.sort.dir);
         renderFilters(); renderGrid();
       }
     });
@@ -641,10 +641,10 @@
     var lg = t.closest('[data-lang]');
     if (lg) { setLang(lg.dataset.lang); return; }
     var v = t.closest('[data-view]');
-    if (v) { S.view = v.dataset.view; lsSet('komari-horizon-view-' + (isMobile() ? 'm' : 'd'), S.view); renderGrid(); return; }
+    if (v) { S.view = v.dataset.view; lsSet('komari-horizon-value-view-' + (isMobile() ? 'm' : 'd'), S.view); renderGrid(); return; }
     if (t.closest('#sort-dir')) {
       S.sort.dir = S.sort.dir === 'asc' ? 'desc' : 'asc';
-      lsSet('komari-horizon-sort', S.sort.field + ':' + S.sort.dir);
+      lsSet('komari-horizon-value-sort', S.sort.field + ':' + S.sort.dir);
       renderFilters(); renderGrid(); return;
     }
     var f = t.closest('[data-filter]');
@@ -889,7 +889,7 @@
     if (!changed) return;
     var payload = {}; Object.keys(S.raw || {}).forEach(function (k) { payload[k] = S.raw[k]; });
     payload.trafficCalib = calib;
-    api.saveSettings(S.settings.theme || 'horizon', payload).then(function () { S.raw = payload; S.T.trafficCalib = calib; }).catch(function () { /* silent */ });
+    api.saveSettings(S.settings.theme || 'horizon-value', payload).then(function () { S.raw = payload; S.T.trafficCalib = calib; }).catch(function () { /* silent */ });
   }
 
   // ---------------------------------------------------------------
@@ -1464,7 +1464,7 @@
   function loadRates() {
     var url = safeUrl(S.T.costRateApiUrl);
     if (!url || !canSeeCosts()) return Promise.resolve();
-    var key = 'komari-horizon-rates:' + url;
+    var key = 'komari-horizon-value-rates:' + url;
     try {
       var c = JSON.parse(lsGet(key, 'null'));
       if (c && Date.now() - c.at < 12 * 3600e3) { applyRates(c.rates); return Promise.resolve(); }
@@ -1889,7 +1889,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4';
+    sc.src = '/assets/manage.js?v=1.9.4-value.1';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
@@ -1940,8 +1940,8 @@
       applyFonts(S.T, true); applyFavicon(S.T, true);
       if (S.settings.private_site && !S.me.logged_in) { privateNotice(); return; }
       S.scheme = lsGet(SCHEME_KEY, '') || S.T.defaultAppearance;
-      S.view = lsGet('komari-horizon-view-' + (isMobile() ? 'm' : 'd'), '') || (isMobile() ? S.T.mobileView : S.T.desktopView);
-      var savedSort = lsGet('komari-horizon-sort', '').split(':');
+      S.view = lsGet('komari-horizon-value-view-' + (isMobile() ? 'm' : 'd'), '') || (isMobile() ? S.T.mobileView : S.T.desktopView);
+      var savedSort = lsGet('komari-horizon-value-sort', '').split(':');
       S.sort = S.T.enableHomeSort && savedSort[0] ? { field: savedSort[0], dir: savedSort[1] === 'desc' ? 'desc' : 'asc' } : { field: S.T.homeSortField, dir: S.T.homeSortDirection };
       shell();
       bindEvents();

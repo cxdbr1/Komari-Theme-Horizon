@@ -68,7 +68,7 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   const p = u.pathname, q = u.searchParams;
   const json = (s) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(s); };
-  if (p === '/api/public') return json(ok({ sitename: 'Horizon', description: 'demo', private_site: false, theme: 'horizon', theme_settings: themeSettings, record_preserve_time: RET_DAYS * 24 }));
+  if (p === '/api/public') return json(ok({ sitename: 'Horizon', description: 'demo', private_site: false, theme: 'horizon-value', theme_settings: themeSettings, record_preserve_time: RET_DAYS * 24 }));
   if (p === '/api/me') return json(JSON.stringify(process.env.ADMIN ? { username: 'admin', logged_in: true } : { username: 'Guest', logged_in: false }));
   if (p === '/api/admin/theme/settings' && req.method === 'POST') {
     let body = ''; req.on('data', c => body += c); req.on('end', () => { try { themeSettings = JSON.parse(body); json(ok(null)); } catch (e) { res.writeHead(400); res.end(JSON.stringify({ status: 'error', message: 'bad json' })); } });
