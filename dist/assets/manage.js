@@ -270,7 +270,7 @@
           toggle('showRemainingValue', Z('显示剩余价值卡片', 'Show remaining value card'), Z('顶部总览中的 Remaining Value。', 'The Remaining Value card in the overview.')) +
           '<div class="m-grid2 tight">' +
             field(Z('折算货币', 'Display currency'), select('baseCurrency', [['USD', Z('USD 美元', 'USD')], ['CNY', Z('CNY 人民币', 'CNY')], ['EUR', Z('EUR 欧元', 'EUR')], ['GBP', Z('GBP 英镑', 'GBP')], ['HKD', Z('HKD 港币', 'HKD')], ['JPY', Z('JPY 日元', 'JPY')], ['SGD', Z('SGD 新元', 'SGD')]])) +
-            field(Z('到期提醒天数', 'Expiry warning (days)'), input('expiryWarningDays', '30', 'number', ' min="1" max="365"'), Z('剩余天数不超过该值时，卡片底部变为琥珀色。', 'The card footer turns amber when this few days are left.')) +
+            field(Z('到期提醒天数', 'Expiry warning (days)'), input('expiryWarningDays', '7', 'number', ' min="1" max="365"'), Z('剩余天数不超过该值时，卡片底部变为琥珀色。', 'The card footer turns amber when this few days are left.')) +
           '</div>' +
           field(Z('实时汇率接口', 'Exchange-rate API'), input('costRateApiUrl', 'https://api.frankfurter.dev/v2/rates?base=USD'), Z('需返回以 USD 为基准的 <code>{"rates":{…}}</code> 或 <code>[{"quote","rate"}]</code>；结果缓存 12 小时，请求失败时使用内置近似汇率。', 'Must return USD-based <code>{"rates":{…}}</code> or <code>[{"quote","rate"}]</code>; cached for 12 hours, built-in approximate rates are used on failure.')) +
         '</div>' +

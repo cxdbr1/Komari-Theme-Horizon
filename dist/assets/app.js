@@ -240,7 +240,7 @@
     trafficResetDays: {}, trafficCalib: {}, trafficAutoCheckpoint: false, trafficCheckpointHours: 12,
     // 08 cost
     showCostsToGuests: true, showRemainingValue: true, baseCurrency: 'USD', costRateApiUrl: 'https://api.frankfurter.dev/v2/rates?base=USD',
-    costIgnoredNodes: [], expiryWarningDays: 30,
+    costIgnoredNodes: [], expiryWarningDays: 7,
     // 08 latency
     showProbes: true, probeCount: 3, cardProbeTaskIds: [], cardProbeNodeTaskIds: {}, latencyGoodMs: 150, latencyWarnMs: 400,
     showLossLines: true, lossMarkerStyle: 'line', lossLineOpacity: 75, connectGapsDefault: false, smoothProbesDefault: false,
@@ -838,7 +838,7 @@
     if (lifetime) { text = text ? text + ' · ' + LT : LT; title = (title ? title + ' · ' : '') + LT; status = 'active'; }
     else if (exp) {
       if (expired) { status = 'expired'; text = (text ? text + ' · ' : '') + _t('Expired ' + Math.abs(daysLeft) + 'd ago', '已过期 ' + Math.abs(daysLeft) + ' 天'); }
-      else { status = daysLeft <= (S.T.expiryWarningDays || 30) ? 'upcoming' : 'active'; text = (text ? text + ' · ' : '') + _t(daysLeft + 'd left', '剩 ' + daysLeft + ' 天'); }
+      else { status = daysLeft <= S.T.expiryWarningDays ? 'upcoming' : 'active'; text = (text ? text + ' · ' : '') + _t(daysLeft + 'd left', '剩 ' + daysLeft + ' 天'); }
       title = (title ? title + ' · ' : '') + _t('Expires ', '到期 ') + dateYMD(exp) + ' · ' + (expired ? _t(Math.abs(daysLeft) + ' days ago', Math.abs(daysLeft) + ' 天前') : _t(daysLeft + ' days left', '剩余 ' + daysLeft + ' 天'));
     }
     var remaining = 0;
@@ -2008,7 +2008,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.7';
+    sc.src = '/assets/manage.js?v=1.9.4-value.8';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
