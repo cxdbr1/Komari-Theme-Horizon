@@ -353,6 +353,7 @@
     traffic: {}, trafficLoading: {}, speedHist: {},
     modal: null,
     valueShown: {},
+    overviewAltCurrency: false,
     lang: 'en'
   };
   var LANG_KEY = 'komari-horizon-value-lang';
@@ -616,6 +617,14 @@
       }
     });
     root.addEventListener('keydown', function (e) {
+      if (e.target.closest && e.target.closest('[data-stat-currency-toggle]')) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!e.repeat) toggleOverviewCurrency();
+        }
+        return;
+      }
       var toggle = e.target.closest && e.target.closest('[data-value-toggle]');
       if (toggle) {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -636,6 +645,7 @@
   function onClick(e) {
     var t = e.target;
     if (t.closest('.manage-root')) return; // the settings page handles its own clicks
+    if (t.closest('[data-stat-currency-toggle]')) { toggleOverviewCurrency(); return; }
     var b = t.closest('[data-scheme]');
     if (b) { S.scheme = b.dataset.scheme; lsSet(SCHEME_KEY, S.scheme); applyScheme(); return; }
     var lg = t.closest('[data-lang]');
@@ -674,6 +684,12 @@
   function toggleValue(uuid) {
     S.valueShown[uuid] = !S.valueShown[uuid];
     renderGrid();
+  }
+  function toggleOverviewCurrency() {
+    S.overviewAltCurrency = !S.overviewAltCurrency;
+    renderStats();
+    var button = document.querySelector('[data-stat-currency-toggle]');
+    if (button) button.focus();
   }
   function syncViewToggle() {
     document.querySelectorAll('.view-toggle button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === S.view)); });
@@ -729,12 +745,12 @@
   function rep(uuid) { return S.live[uuid] || null; }
   function isOnline(uuid) { return !!S.online[uuid]; }
 
-  function toBase(amount, code) {
-    var base = String(S.T.baseCurrency || 'USD').toUpperCase();
-    var from = S.rates[code], to = S.rates[base];
+  function toCurrency(amount, code, target) {
+    var from = S.rates[code], to = S.rates[target];
     if (!from || !to) return null;
     return amount * from / to;
   }
+  function toBase(amount, code) { return toCurrency(amount, code, String(S.T.baseCurrency || 'USD').toUpperCase()); }
 
   function billing(n) {
     var code = currencyCode(n.currency);
@@ -907,7 +923,9 @@
     var nodes = visibleNodes();
     var total = nodes.length, online = 0, cores = 0, cpuSum = 0, cpuN = 0;
     var memU = 0, memT = 0, diskU = 0, diskT = 0, rx = 0, tx = 0, tin = 0, tout = 0;
-    var base = String(T.baseCurrency || 'USD').toUpperCase(), value = 0;
+    var configured = String(T.baseCurrency || 'USD').toUpperCase();
+    var base = S.overviewAltCurrency ? (configured === 'CNY' ? 'USD' : 'CNY') : configured;
+    var value = 0, annual = 0;
     nodes.forEach(function (n) {
       var r = rep(n.uuid), on = isOnline(n.uuid);
       if (on) online++;
@@ -921,7 +939,13 @@
       if (r) { var tr = trafficOf(n); tin += tr.down; tout += tr.up; }
       if (!matchesList(n, T.costIgnoredNodes)) {
         var b = billing(n);
-        if (b.remaining > 0) { var cv = toBase(b.remaining, b.code); value += cv == null ? 0 : cv; }
+        if (b.remaining > 0) { var cv = toCurrency(b.remaining, b.code, base); value += cv == null ? 0 : cv; }
+        var cycle = num(n.billing_cycle), price = num(n.price);
+        var expiry = n.expired_at ? new Date(n.expired_at) : null;
+        if (price > 0 && cycle > 0 && b.status !== 'expired' && !(expiry && expiry.getFullYear() >= 2099)) {
+          var yearly = toCurrency(price * 365 / cycle, b.code, base);
+          if (yearly != null) annual += yearly;
+        }
       }
     });
     var cpuAvg = cpuN ? cpuSum / cpuN : 0;
@@ -954,10 +978,14 @@
       '<span class="k">' + _t('Total Out', '总出站') + '</span><span class="v">' + bytesPrecise(tout) + '</span></div>' +
       ratingTag('traffic', tin + tout, [500 * GB, 2000 * GB, 10000 * GB])));
     if (T.showRemainingValue && canSeeCosts()) {
-      panels.push('<div class="public-stat-panel remaining-value-card monitor-surface-primary"><div class="remaining-label">' + _t('Remaining Value', '剩余价值') + '</div>' +
+      var nextCurrency = base === 'CNY' ? configured === 'CNY' ? 'USD' : configured : 'CNY';
+      panels.push('<button type="button" class="public-stat-panel remaining-value-card monitor-surface-primary monitor-hover" data-stat-currency-toggle aria-pressed="' + S.overviewAltCurrency + '" aria-label="' + esc(_t('Remaining value, monthly and annual cost in ' + base + '. Switch to ' + nextCurrency, '剩余价值、月化和年化费用，币种 ' + base + '。点击切换为 ' + nextCurrency)) + '" title="' + esc(_t('Switch to ' + nextCurrency, '切换为 ' + nextCurrency)) + '"><div class="remaining-label">' + _t('Remaining Value', '剩余价值') + '</div>' +
         '<div class="stat-value" style="margin-top:8px">' + (SYMBOL[base] || '') + value.toFixed(2) + '</div>' +
         '<span class="remaining-cur" role="status" title="' + _t('Estimated remaining service value in ' + esc(base) + (S.ratesLive ? ' (live rates).' : ' (approximate rates).'), '按' + (S.ratesLive ? '实时' : '近似') + '汇率折算的剩余服务价值（' + esc(base) + '）') + '">' + esc(base) + '</span>' +
-        ratingTag('asset', value, [cny(500), cny(1500), cny(3000)]) + '</div>');
+        '<div class="remaining-costs" title="' + esc(_t('Recurring billing converted to a 365-day year; monthly average is one twelfth.', '经常性账单按 365 天折算年化，月化为年化的十二分之一。')) + '">' +
+        '<span>' + _t('Monthly', '月化') + '<strong data-monthly-cost>' + (SYMBOL[base] || '') + (annual / 12).toFixed(2) + '</strong></span>' +
+        '<span>' + _t('Annual', '年化') + '<strong data-annual-cost>' + (SYMBOL[base] || '') + annual.toFixed(2) + '</strong></span></div>' +
+        ratingTag('asset', value, [cny(500), cny(1500), cny(3000)]) + '</button>');
     }
     setHTML(box, panels.join(''));
   }
@@ -1889,7 +1917,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.1';
+    sc.src = '/assets/manage.js?v=1.9.4-value.2';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
