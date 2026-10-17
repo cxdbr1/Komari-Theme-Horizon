@@ -328,7 +328,7 @@ h1, h2, h3, p { font-size: inherit; font-weight: inherit; }
 .group-title::after { content: ""; flex: 1; height: 1px; background: var(--monitor-border-nested); }
 .empty-state { grid-column: 1 / -1; border-radius: 12px; border: 1px dashed var(--monitor-border); padding: 48px 16px; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--monitor-muted); }
 
-.node-monitor-card { position: relative; display: flex; min-width: 0; flex-direction: column; justify-content: space-between; cursor: pointer; border-radius: 12px; border-width: 1px; border-style: solid; padding: 16px; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: all .2s; scroll-margin-top: calc(var(--monitor-header-height, 56px) + 16px); }
+.node-monitor-card { position: relative; display: flex; min-width: 0; flex-direction: column; justify-content: space-between; border-radius: 12px; border-width: 1px; border-style: solid; padding: 16px; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: all .2s; scroll-margin-top: calc(var(--monitor-header-height, 56px) + 16px); }
 @media (min-width: 640px) { .node-monitor-card { padding: 18px; } }
 [data-layout="dense"] .node-monitor-card { padding: 13px; }
 .node-monitor-card.is-offline { opacity: .62; }
@@ -342,8 +342,9 @@ h1, h2, h3, p { font-size: inherit; font-weight: inherit; }
 .node-title { min-width: 0; font-size: 14px; line-height: 20px; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .node-status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 9999px; vertical-align: middle; margin-right: 6px; background: var(--emerald-500); }
 .is-offline .node-status-dot, .status-dot.off { background: var(--red-500); }
-.node-name { font-weight: 600; color: var(--t-strong); transition: color .15s; }
-.node-monitor-card:hover .node-name { color: var(--blue-500); }
+.node-name { border: 0; padding: 0; background: transparent; font: inherit; font-weight: 600; color: var(--t-strong); text-align: left; cursor: pointer; transition: color .15s; }
+.node-name:hover, .node-name:focus-visible { color: var(--blue-500); }
+.node-name:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; border-radius: 2px; }
 .node-provider-sep { margin: 0 6px; color: var(--monitor-muted); }
 .node-provider { display: inline-flex; max-width: 100%; align-items: baseline; vertical-align: baseline; gap: 4px; font-size: 12px; line-height: 20px; font-weight: 400; color: var(--monitor-muted); }
 .node-alert-status { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; color: var(--monitor-muted); }

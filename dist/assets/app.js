@@ -634,8 +634,11 @@
         }
         return;
       }
-      var card = e.target.closest && e.target.closest('.node-monitor-card');
-      if (card && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openModal(card.dataset.uuid); }
+      var name = e.target.closest && e.target.closest('.node-name');
+      if (name && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        if (!e.repeat) openModal(name.closest('.node-monitor-card').dataset.uuid);
+      }
     });
     var dlg = $('#modal');
     dlg.addEventListener('close', function () { S.modal = null; dlg.innerHTML = ''; });
@@ -678,8 +681,8 @@
       toggleValue(valueToggle.dataset.valueToggle);
       return;
     }
-    var card = t.closest('.node-monitor-card');
-    if (card) openModal(card.dataset.uuid);
+    var name = t.closest('.node-name');
+    if (name) openModal(name.closest('.node-monitor-card').dataset.uuid);
   }
   function toggleValue(uuid) {
     S.valueShown[uuid] = !S.valueShown[uuid];
@@ -1269,7 +1272,7 @@
     var resetChip = T.showResetCountdown && tr.cyc ? '<span class="chip" title="' + esc(resetTitle(tr)) + '">' + icon('rotate-ccw') + (tr.cyc.daysLeft === 0 ? _t('Today', '今天') : tr.cyc.daysLeft + 'd') + '</span>' : '';
     var h = '<div><div class="node-head monitor-divider"><div class="node-head-row"><div class="node-ident">' +
       '<div class="node-os monitor-chip">' + osIcon(n.os) + '</div>' +
-      '<h3 class="node-title"><span class="node-status-dot" aria-hidden="true"></span><span class="node-name">' + esc(n.name) + '</span>' +
+      '<h3 class="node-title"><span class="node-status-dot" aria-hidden="true"></span><button type="button" class="node-name" aria-label="' + esc(_t('Inspect ', '查看 ') + n.name) + '">' + esc(n.name) + '</button>' +
       (V.group ? '<span class="node-provider-sep" aria-hidden="true">·</span><span class="node-provider">' + esc(V.group) + '</span>' : '') +
       '</h3></div>' +
       '<span role="img" aria-label="' + (V.on ? _t('No active alerts', '无告警') : _t('Node offline', '节点离线')) + '" class="node-alert-status' + (V.on ? '' : ' warn') + '">' + icon(V.on ? 'bell' : 'wifi-off') + '</span></div>' +
@@ -1308,7 +1311,7 @@
     };
     var h = '<div><div class="node-head-row"><div class="node-ident">' +
       '<div class="node-os monitor-chip">' + osIcon(n.os) + '</div>' +
-      '<h3 class="node-title"><span class="node-status-dot" aria-hidden="true"></span>' + (n.region ? flagImg(n.region) + ' ' : '') + '<span class="node-name">' + esc(n.name) + '</span></h3></div>' +
+      '<h3 class="node-title"><span class="node-status-dot" aria-hidden="true"></span>' + (n.region ? flagImg(n.region) + ' ' : '') + '<button type="button" class="node-name" aria-label="' + esc(_t('Inspect ', '查看 ') + n.name) + '">' + esc(n.name) + '</button></h3></div>' +
       (T.compactShowUptime ? '<span class="chip">' + icon(V.on ? 'clock' : 'cloud-off') + (V.on ? uptime(V.r.uptime) : _t('Offline', '离线')) + '</span>' : '') + '</div>' +
       '<div class="cm-grid">' + meter('CPU', V.cpu, 'g-blue') + meter(_t('MEM', '内存'), pct(V.memU, V.memT), 'g-emerald') + meter(_t('DISK', '硬盘'), pct(V.diskU, V.diskT), 'g-amber') +
         '<div class="cm" title="' + _t('Load average (1m), bar = load / cores', '1 分钟平均负载，进度 = 负载 / 核心数') + '"><div class="cm-top"><span>' + _t('LOAD', '负载') + '</span><b>' + num(V.load.load1).toFixed(2) + '</b></div><div class="bar"><div class="g-pink" style="width:' + clamp(loadPct(V), 0, 100) + '%"></div></div></div></div>' +
@@ -1343,7 +1346,7 @@
           var g = (n.group || '').trim() || _t('Ungrouped', '未分组');
           if (g !== lastGroup) { html += '<div class="group-title">' + esc(g) + '</div>'; lastGroup = g; }
         }
-        html += '<div role="button" tabindex="0" data-uuid="' + esc(n.uuid) + '" class="node-monitor-card monitor-surface-primary monitor-hover' + (S.view === 'compact' ? ' is-compact' : '') + '"></div>';
+        html += '<div data-uuid="' + esc(n.uuid) + '" class="node-monitor-card monitor-surface-primary' + (S.view === 'compact' ? ' is-compact' : '') + '"></div>';
       });
       grid.innerHTML = html;
     }
@@ -1352,7 +1355,6 @@
       if (!el) return;
       var on = isOnline(n.uuid);
       el.classList.toggle('is-offline', !on);
-      el.setAttribute('aria-label', _t('Inspect ', '查看 ') + n.name + ': ' + (on ? _t('Online', '在线') : _t('Offline', '离线')));
       var html = S.view === 'compact' ? compactHTML(n) : cardHTML(n);
       if (cardCache[n.uuid] !== html) { patchHTML(el, html); cardCache[n.uuid] = html; }
     });
@@ -1917,7 +1919,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.2';
+    sc.src = '/assets/manage.js?v=1.9.4-value.3';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
