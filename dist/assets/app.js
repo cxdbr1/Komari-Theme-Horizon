@@ -1040,12 +1040,12 @@
       ratingTag('traffic', tin + tout, [500 * GB, 2000 * GB, 10000 * GB])));
     if (T.showRemainingValue && canSeeCosts()) {
       var nextCurrency = base === 'CNY' ? configured === 'CNY' ? 'USD' : configured : 'CNY';
-      var modes = [[_t('Remaining Value', '剩余价值'), value, ''], [_t('Monthly', '月'), annual / 12, _t('/mo', '/月')], [_t('Annual', '年'), annual, _t('/yr', '/年')]];
+      var modes = [[_t('Remaining Value', '剩余价值'), value], [_t('Monthly', '月'), annual / 12], [_t('Annual', '年'), annual]];
       var selected = modes[S.overviewValueMode], next = modes[(S.overviewValueMode + 1) % modes.length][0];
       panels.push('<div class="public-stat-panel remaining-value-card monitor-surface-primary monitor-hover">' +
-        '<button type="button" class="remaining-main" data-stat-view-toggle aria-label="' + esc(selected[0] + ' ' + (SYMBOL[base] || '') + selected[1].toFixed(2) + selected[2] + '. ' + _t('Switch to ', '点击显示') + next) + '"' +
+        '<button type="button" class="remaining-main" data-stat-view-toggle aria-label="' + esc(selected[0] + ' ' + (SYMBOL[base] || '') + selected[1].toFixed(2) + '. ' + _t('Switch to ', '点击显示') + next) + '"' +
         ' title="' + esc(_t('Switch to ', '切换为') + next) + '"><span class="remaining-label">' + selected[0] + '</span>' +
-        '<span class="stat-value" style="margin-top:8px">' + (SYMBOL[base] || '') + selected[1].toFixed(2) + (selected[2] ? '<span class="stat-unit">' + selected[2] + '</span>' : '') + '</span></button>' +
+        '<span class="stat-value" style="margin-top:8px">' + (SYMBOL[base] || '') + selected[1].toFixed(2) + '</span></button>' +
         '<div class="remaining-card-footer"><button type="button" class="remaining-cur" data-stat-currency-toggle aria-pressed="' + S.overviewAltCurrency + '"' +
         ' aria-label="' + esc(_t('Currency ' + base + '. Switch to ' + nextCurrency, '当前币种 ' + base + '，点击切换为 ' + nextCurrency)) + '"' +
         ' title="' + esc(_t('Switch to ' + nextCurrency, '切换为 ' + nextCurrency)) + '">' + esc(base) + '</button>' +
@@ -1980,7 +1980,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.5';
+    sc.src = '/assets/manage.js?v=1.9.4-value.6';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
