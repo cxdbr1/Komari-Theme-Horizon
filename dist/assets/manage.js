@@ -266,7 +266,7 @@
     function sCost() {
       return section('08', kicker('08'), Z('服务器花费', 'Server costs'), Z('剩余价值卡片按实时汇率折算各节点当前账期的剩余价值；忽略列表中的节点不计入。', 'The remaining-value card converts what is left of each billing period at live rates; ignored nodes are skipped.'),
         '<div class="m-grid2"><div class="m-stack">' +
-          toggle('showCostsToGuests', Z('向未登录访客公开费用', 'Show costs to visitors'), Z('关闭后续费价格、剩余价值与价格排序仅登录管理员可见；到期时间仍正常显示。', 'When off, prices, remaining value and price sorting are admin-only; expiry dates still show.')) +
+          toggle('showCostsToGuests', Z('向未登录访客展示费用', 'Display costs to visitors'), Z('仅隐藏主题界面中的费用；Komari 公开节点接口仍返回价格，此项不能保护费用数据。', 'Hides costs in the theme UI only. Komari’s public node API still returns prices; this is not data protection.')) +
           toggle('showRemainingValue', Z('显示剩余价值卡片', 'Show remaining value card'), Z('顶部总览中的 Remaining Value。', 'The Remaining Value card in the overview.')) +
           '<div class="m-grid2 tight">' +
             field(Z('折算货币', 'Display currency'), select('baseCurrency', [['USD', Z('USD 美元', 'USD')], ['CNY', Z('CNY 人民币', 'CNY')], ['EUR', Z('EUR 欧元', 'EUR')], ['GBP', Z('GBP 英镑', 'GBP')], ['HKD', Z('HKD 港币', 'HKD')], ['JPY', Z('JPY 日元', 'JPY')], ['SGD', Z('SGD 新元', 'SGD')]])) +

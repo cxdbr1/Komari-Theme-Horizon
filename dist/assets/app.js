@@ -776,7 +776,7 @@
       case 'netRate': return num(r.network && r.network.up) + num(r.network && r.network.down);
       case 'traffic': { var tt = trafficOf(n); return tt.up + tt.down; }
       case 'uptime': return num(r.uptime);
-      case 'price': return billing(n).monthlyBase;
+      case 'price': { var monthly = billing(n).monthlyBase; return monthly == null ? Infinity : monthly; }
       case 'expiry': { var e = n.expired_at ? new Date(n.expired_at).getTime() : NaN; return isFinite(e) && e > 0 ? e : 9e15; }
       default: return num(n.weight);
     }
@@ -796,8 +796,13 @@
         var g = groupRank(a.group || '') - groupRank(b.group || ''); if (g) return g;
         var gs = String(a.group || '').localeCompare(String(b.group || '')); if (gs) return gs;
       }
-      if (field !== 'default') { var oa = isOnline(a.uuid) ? 0 : 1, ob = isOnline(b.uuid) ? 0 : 1; if (oa !== ob) return oa - ob; }
       var va = sortValue(a, field), vb = sortValue(b, field);
+      if (field === 'price' && (!isFinite(va) || !isFinite(vb))) {
+        if (!isFinite(va) && isFinite(vb)) return 1;
+        if (isFinite(va) && !isFinite(vb)) return -1;
+        return idx[a.uuid] - idx[b.uuid];
+      }
+      if (field !== 'default') { var oa = isOnline(a.uuid) ? 0 : 1, ob = isOnline(b.uuid) ? 0 : 1; if (oa !== ob) return oa - ob; }
       var c = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
       return c * dir || idx[a.uuid] - idx[b.uuid];
     });
@@ -818,7 +823,9 @@
     var price = num(n.price);
     var exp = n.expired_at ? new Date(n.expired_at) : null;
     if (exp && (isNaN(exp.getTime()) || exp.getFullYear() < 2000)) exp = null;
-    var daysLeft = exp ? Math.ceil((exp.getTime() - Date.now()) / 86400000) : null;
+    var remainingMs = exp ? exp.getTime() - Date.now() : null;
+    var expired = remainingMs != null && remainingMs <= 0;
+    var daysLeft = exp ? (expired ? -Math.ceil(-remainingMs / 86400000) : Math.ceil(remainingMs / 86400000)) : null;
     var lifetime = exp && exp.getFullYear() >= 2099;
     var cyc = cycleInfo(n.billing_cycle);
     var showCost = canSeeCosts();
@@ -830,15 +837,15 @@
     var LT = _t('Lifetime', '永久');
     if (lifetime) { text = text ? text + ' · ' + LT : LT; title = (title ? title + ' · ' : '') + LT; status = 'active'; }
     else if (exp) {
-      if (daysLeft < 0) { status = 'expired'; text = (text ? text + ' · ' : '') + _t('Expired ' + Math.abs(daysLeft) + 'd ago', '已过期 ' + Math.abs(daysLeft) + ' 天'); }
+      if (expired) { status = 'expired'; text = (text ? text + ' · ' : '') + _t('Expired ' + Math.abs(daysLeft) + 'd ago', '已过期 ' + Math.abs(daysLeft) + ' 天'); }
       else { status = daysLeft <= (S.T.expiryWarningDays || 30) ? 'upcoming' : 'active'; text = (text ? text + ' · ' : '') + _t(daysLeft + 'd left', '剩 ' + daysLeft + ' 天'); }
-      title = (title ? title + ' · ' : '') + _t('Expires ', '到期 ') + dateYMD(exp) + ' · ' + (daysLeft < 0 ? _t(Math.abs(daysLeft) + ' days ago', Math.abs(daysLeft) + ' 天前') : _t(daysLeft + ' days left', '剩余 ' + daysLeft + ' 天'));
+      title = (title ? title + ' · ' : '') + _t('Expires ', '到期 ') + dateYMD(exp) + ' · ' + (expired ? _t(Math.abs(daysLeft) + ' days ago', Math.abs(daysLeft) + ' 天前') : _t(daysLeft + ' days left', '剩余 ' + daysLeft + ' 天'));
     }
     var remaining = 0;
-    if (price > 0 && exp && !lifetime && daysLeft > 0 && num(n.billing_cycle) > 0) remaining = price * Math.min(1, daysLeft / num(n.billing_cycle));
+    if (price > 0 && exp && !lifetime && !expired && num(n.billing_cycle) > 0) remaining = price * Math.min(1, daysLeft / num(n.billing_cycle));
     var monthly = price > 0 && num(n.billing_cycle) > 0 ? price / num(n.billing_cycle) * 30 : 0;
     var mb = monthly ? toBase(monthly, code) : 0;
-    return { text: text, title: title || text, status: status, remaining: remaining, code: code, monthlyBase: mb == null ? monthly : mb };
+    return { text: text, title: title || text, status: status, remaining: remaining, code: code, monthlyBase: mb };
   }
 
   // ---------------------------------------------------------------
@@ -986,7 +993,7 @@
     var memU = 0, memT = 0, diskU = 0, diskT = 0, rx = 0, tx = 0, tin = 0, tout = 0;
     var configured = String(T.baseCurrency || 'USD').toUpperCase();
     var base = S.overviewAltCurrency ? (configured === 'CNY' ? 'USD' : 'CNY') : configured;
-    var value = 0, annual = 0;
+    var value = 0, annual = 0, valueUnknown = false, annualUnknown = false;
     nodes.forEach(function (n) {
       var r = rep(n.uuid), on = isOnline(n.uuid);
       if (on) online++;
@@ -1000,12 +1007,12 @@
       if (r) { var tr = trafficOf(n); tin += tr.down; tout += tr.up; }
       if (!matchesList(n, T.costIgnoredNodes)) {
         var b = billing(n);
-        if (b.remaining > 0) { var cv = toCurrency(b.remaining, b.code, base); value += cv == null ? 0 : cv; }
+        if (b.remaining > 0) { var cv = toCurrency(b.remaining, b.code, base); if (cv == null) valueUnknown = true; else value += cv; }
         var cycle = num(n.billing_cycle), price = num(n.price);
         var expiry = n.expired_at ? new Date(n.expired_at) : null;
         if (price > 0 && cycle > 0 && b.status !== 'expired' && !(expiry && expiry.getFullYear() >= 2099)) {
           var yearly = toCurrency(price * 365 / cycle, b.code, base);
-          if (yearly != null) annual += yearly;
+          if (yearly == null) annualUnknown = true; else annual += yearly;
         }
       }
     });
@@ -1040,16 +1047,17 @@
       ratingTag('traffic', tin + tout, [500 * GB, 2000 * GB, 10000 * GB])));
     if (T.showRemainingValue && canSeeCosts()) {
       var nextCurrency = base === 'CNY' ? configured === 'CNY' ? 'USD' : configured : 'CNY';
-      var modes = [[_t('Remaining Value', '剩余价值'), value], [_t('Monthly', '月'), annual / 12], [_t('Annual', '年'), annual]];
+      var modes = [[_t('Remaining Value', '剩余价值'), value, valueUnknown], [_t('Monthly', '月'), annual / 12, annualUnknown], [_t('Annual', '年'), annual, annualUnknown]];
       var selected = modes[S.overviewValueMode], next = modes[(S.overviewValueMode + 1) % modes.length][0];
+      var amountText = selected[2] ? '—' : (SYMBOL[base] || '') + selected[1].toFixed(2);
       panels.push('<div class="public-stat-panel remaining-value-card monitor-surface-primary monitor-hover">' +
-        '<button type="button" class="remaining-main" data-stat-view-toggle aria-label="' + esc(selected[0] + ' ' + (SYMBOL[base] || '') + selected[1].toFixed(2) + '. ' + _t('Switch to ', '点击显示') + next) + '"' +
+        '<button type="button" class="remaining-main" data-stat-view-toggle aria-label="' + esc(selected[0] + ' ' + (selected[2] ? _t('unavailable (unknown exchange rate)', '不可计算（缺少汇率）') : amountText) + '. ' + _t('Switch to ', '点击显示') + next) + '"' +
         ' title="' + esc(_t('Switch to ', '切换为') + next) + '"><span class="remaining-label">' + selected[0] + '</span>' +
-        '<span class="stat-value" style="margin-top:8px">' + (SYMBOL[base] || '') + selected[1].toFixed(2) + '</span></button>' +
+        '<span class="stat-value" style="margin-top:8px"' + (selected[2] ? ' title="' + esc(_t('Unknown exchange rate', '缺少汇率')) + '"' : '') + '>' + amountText + '</span></button>' +
         '<div class="remaining-card-footer"><button type="button" class="remaining-cur" data-stat-currency-toggle aria-pressed="' + S.overviewAltCurrency + '"' +
         ' aria-label="' + esc(_t('Currency ' + base + '. Switch to ' + nextCurrency, '当前币种 ' + base + '，点击切换为 ' + nextCurrency)) + '"' +
         ' title="' + esc(_t('Switch to ' + nextCurrency, '切换为 ' + nextCurrency)) + '">' + esc(base) + '</button>' +
-        (S.overviewValueMode === 0 ? ratingTag('asset', value, [cny(500), cny(1500), cny(3000)]) : '') + '</div></div>');
+        (S.overviewValueMode === 0 && !valueUnknown ? ratingTag('asset', value, [cny(500), cny(1500), cny(3000)]) : '') + '</div></div>');
     }
     setHTML(box, panels.join(''));
   }
@@ -1515,8 +1523,8 @@
     try { ws = new WebSocket(proto + location.host + '/api/clients'); } catch (e) { scheduleReconnect(); return; }
     setConn('connecting');
     ws.onopen = function () {
-      retry = 0; ws.send('get'); clearInterval(wsTimer);
-      wsTimer = setInterval(function () { if (ws && ws.readyState === 1) ws.send('get'); }, S.T.refreshIntervalMs);
+      retry = 0; if (!document.hidden) ws.send('get'); clearInterval(wsTimer);
+      wsTimer = setInterval(function () { if (!document.hidden && ws && ws.readyState === 1) ws.send('get'); }, S.T.refreshIntervalMs);
     };
     ws.onmessage = function (ev) {
       var j; try { j = JSON.parse(ev.data); } catch (e) { return; }
@@ -1552,15 +1560,17 @@
   }
 
   // live exchange rates (frankfurter-style payloads: {rates:{EUR:0.92}} or [{quote,rate}]), cached 12h
+  var ratesLoading = null;
   function loadRates() {
     var url = safeUrl(S.T.costRateApiUrl);
     if (!url || !canSeeCosts()) return Promise.resolve();
+    if (ratesLoading) return ratesLoading;
     var key = 'komari-horizon-value-rates:' + url;
     try {
       var c = JSON.parse(lsGet(key, 'null'));
-      if (c && Date.now() - c.at < 12 * 3600e3) { applyRates(c.rates); return Promise.resolve(); }
+      if (c && Date.now() - c.at < 12 * 3600e3) { if (!S.ratesLive) applyRates(c.rates); return Promise.resolve(); }
     } catch (e) { /* ignore */ }
-    return fetch(url).then(function (r) { if (!r.ok) throw new Error('rates'); return r.json(); }).then(function (j) {
+    ratesLoading = fetch(url).then(function (r) { if (!r.ok) throw new Error('rates'); return r.json(); }).then(function (j) {
       var perUsd = { USD: 1 };
       if (Array.isArray(j)) j.forEach(function (it) { if (it && it.quote && num(it.rate) > 0) perUsd[String(it.quote).toUpperCase()] = num(it.rate); });
       else if (j && j.rates) Object.keys(j.rates).forEach(function (k) { if (num(j.rates[k]) > 0) perUsd[k.toUpperCase()] = num(j.rates[k]); });
@@ -1570,7 +1580,8 @@
       if (Object.keys(usdValue).length < 3) throw new Error('rates');
       lsSet(key, JSON.stringify({ at: Date.now(), rates: usdValue }));
       applyRates(usdValue);
-    }).catch(function () { /* keep fallback */ });
+    }).catch(function () { /* keep fallback */ }).finally(function () { ratesLoading = null; });
+    return ratesLoading;
   }
   function applyRates(r) {
     var merged = {}; Object.keys(DEFAULT_RATES).forEach(function (k) { merged[k] = DEFAULT_RATES[k]; });
@@ -1634,16 +1645,17 @@
 
   function setHistoryRange(h) {
     var m = S.modal; if (!m) return;
+    var request = m.historyRequest = (m.historyRequest || 0) + 1;
     m.range = h; m.loading = true; m.hover = null;
     renderModalCharts();
     var uuid = m.uuid;
     api.load(uuid, h).then(function (res) {
-      if (!S.modal || S.modal.uuid !== uuid || S.modal.range !== h) return;
+      if (S.modal !== m || m.historyRequest !== request) return;
       var recs = (res && res.records || []).map(function (r) {
         return { t: new Date(r.time).getTime(), cpu: num(r.cpu), ram: num(r.ram), ramT: num(r.ram_total), disk: num(r.disk), diskT: num(r.disk_total), rx: num(r.net_in), tx: num(r.net_out), load: num(r.load) };
       }).sort(function (a, b) { return a.t - b.t; });
-      S.modal.records = downsample(recs, 360); S.modal.loading = false; renderModalCharts();
-    }).catch(function () { if (!S.modal) return; S.modal.records = []; S.modal.loading = false; renderModalCharts(); });
+      m.records = downsample(recs, 360); m.loading = false; renderModalCharts();
+    }).catch(function () { if (S.modal !== m || m.historyRequest !== request) return; m.records = []; m.loading = false; renderModalCharts(); });
   }
   function downsample(arr, max) {
     if (arr.length <= max) return arr;
@@ -1678,6 +1690,10 @@
   function renderModalCharts() {
     var m = S.modal; if (!m) return;
     var box = $('#history'); if (!box) return;
+    var focused = box.contains(document.activeElement) ? document.activeElement : null;
+    var focusSelector = focused && focused.dataset.metric ? '[data-metric="' + focused.dataset.metric + '"]' :
+      focused && focused.dataset.range ? '[data-range="' + focused.dataset.range + '"]' :
+      focused && focused.id === 'hist-svg' ? '#hist-svg' : null;
     box.setAttribute('aria-busy', String(!!m.loading));
     var recs = m.records || [], def = metricDef(m.metric, recs);
     var top = '<div class="history-bar monitor-divider"><div class="seg" role="group" aria-label="' + _t('Historical metric', '历史指标') + '">' +
@@ -1694,6 +1710,10 @@
       '<div class="chart-foot"><span>' + (recs.length ? axisTime(recs[0].t, m.range) : '') + '</span><span>' + _t('Interactive Telemetry · ', '交互图表 · ') + (m.range > 1 ? _t('Averaged buckets · ', '分段平均 · ') : '') + _t('Hover or use arrow keys', '悬停或使用方向键查看') + '</span><span>' + (recs.length ? axisTime(recs[recs.length - 1].t, m.range) : '') + '</span></div>' +
       (def.legend ? '<div class="chart-legend">' + def.legend.map(function (l) { return '<span style="color:' + l[1] + '">' + l[0] + '</span>'; }).join('') + '</div>' : '') + '</div>';
     if (!body) drawHistory(def, recs);
+    if (focusSelector && document.activeElement === document.body) {
+      var nextFocus = box.querySelector(focusSelector);
+      if (nextFocus) nextFocus.focus();
+    }
   }
   function readoutText(def, r, metric) {
     if (!r) return '—';
@@ -1759,11 +1779,12 @@
   // ---- probes (with packet-loss dashed lines) ----
   function setProbeRange(h) {
     var m = S.modal; if (!m) return;
+    var request = m.probeRequest = (m.probeRequest || 0) + 1;
     m.prange = h; m.ploading = true; m.phover = null;
     renderProbeChart();
     var uuid = m.uuid;
     api.ping(uuid, h).then(function (res) {
-      if (!S.modal || S.modal.uuid !== uuid || S.modal.prange !== h) return;
+      if (S.modal !== m || m.probeRequest !== request) return;
       var raw = {}, loss = {}, stats = {}, lossSeries = {};
       (res && res.records || []).forEach(function (r) {
         var t = new Date(r.time).getTime();
@@ -1786,10 +1807,10 @@
         lossSeries[k] = bk.map(function (x, i) { return { t: start + (i + 0.5) * span, v: x.n ? x.lost / x.n * 100 : null }; });
         by[k] = downsampleProbe(arr, h > 24 ? 600 : 400);
       });
-      S.modal.probe = { by: by, loss: loss, stats: stats, lossSeries: lossSeries, tasks: (res && res.tasks) || [] };
-      S.modal.ploading = false;
+      m.probe = { by: by, loss: loss, stats: stats, lossSeries: lossSeries, tasks: (res && res.tasks) || [] };
+      m.ploading = false;
       renderProbeChart();
-    }).catch(function () { if (S.modal) { S.modal.probe = { by: {}, loss: {}, stats: {}, lossSeries: {}, tasks: [] }; S.modal.ploading = false; renderProbeChart(); } });
+    }).catch(function () { if (S.modal !== m || m.probeRequest !== request) return; m.probe = { by: {}, loss: {}, stats: {}, lossSeries: {}, tasks: [] }; m.ploading = false; renderProbeChart(); });
   }
   // "peak shaving": rolling median over 5 successful samples; lost samples stay where they are
   function smoothSeries(data) {
@@ -1827,6 +1848,12 @@
   function renderProbeChart() {
     var m = S.modal; if (!m) return;
     var box = $('#probes'); if (!box) return;
+    var focused = box.contains(document.activeElement) ? document.activeElement : null;
+    var focusSelector = focused && focused.dataset.pmode ? '[data-pmode="' + focused.dataset.pmode + '"]' :
+      focused && focused.dataset.prange ? '[data-prange="' + focused.dataset.prange + '"]' :
+      focused && focused.dataset.ptoggle ? '[data-ptoggle="' + focused.dataset.ptoggle + '"]' :
+      focused && focused.dataset.series ? '[data-series="' + focused.dataset.series + '"]' :
+      focused && focused.id === 'probe-svg' ? '#probe-svg' : null;
     var P = m.probe || {}, tasks = probeTaskList(), lossMode = m.pmode === 'loss';
     var by = P.by || {}, lossBy = P.loss || {}, stats = P.stats || {}, lossSeries = P.lossSeries || {};
     var tg = function (key, label, title) { return '<button type="button" class="obtn' + (m[key] ? ' sel' : '') + '" data-ptoggle="' + key + '" aria-pressed="' + !!m[key] + '" title="' + title + '">' + label + '</button>'; };
@@ -1841,7 +1868,7 @@
       '<span class="probe-tools-sep" aria-hidden="true"></span>' +
       RANGES.map(function (h) { return '<button type="button" class="obtn' + (m.prange === h[0] ? ' sel' : '') + '" data-prange="' + h[0] + '" aria-pressed="' + (m.prange === h[0]) + '">' + h[1] + '</button>'; }).join('') +
       '</div></div>';
-    if (!tasks.length) { box.innerHTML = html + '<p class="log-empty monitor-surface-secondary">' + _t('No latency probes assigned to this node', '该节点没有分配延迟探测任务') + '</p>'; return; }
+    if (!tasks.length) { box.innerHTML = html + '<p class="log-empty monitor-surface-secondary">' + _t('No latency probes assigned to this node', '该节点没有分配延迟探测任务') + '</p>'; if (focusSelector && document.activeElement === document.body && box.querySelector(focusSelector)) box.querySelector(focusSelector).focus(); return; }
     html += '<div class="probe-panel monitor-surface-secondary"><div class="probe-series" role="group" aria-label="' + _t('Probe series', '探测任务') + '">' +
       tasks.map(function (t, i) {
         var hidden = !!m.hiddenSeries[t.id], st = stats[t.id] || {};
@@ -1853,6 +1880,7 @@
       '<output class="probe-readout" id="probe-out"></output><div class="probe-chart-viewport" id="probe-vp"></div>' +
       '<div class="probe-foot"><span id="probe-start"></span><span>' + (lossMode ? _t('Loss rate per interval', '分段丢包率') : (m.smooth ? _t('Smoothed · ', '已削峰 · ') : _t('Raw checks · ', '原始检测 · ')) + (m.lossLines && S.T.lossMarkerStyle !== 'cross' ? '┆ ' : '× ') + _t('Packet loss', '丢包')) + _t(' · Hover or use arrow keys', ' · 悬停或使用方向键查看') + '</span><span id="probe-end"></span></div></div>';
     box.innerHTML = html;
+    if (focusSelector && document.activeElement === document.body && box.querySelector(focusSelector)) box.querySelector(focusSelector).focus();
 
     var vp = $('#probe-vp');
     var series = tasks.map(function (t, i) {
@@ -1980,7 +2008,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.6';
+    sc.src = '/assets/manage.js?v=1.9.4-value.7';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
@@ -2053,9 +2081,16 @@
         loadPings();
         loadRates();
         setTimeout(function () { loadTraffic(); }, 1500);
-        setInterval(function () { loadTraffic(); }, 10 * 60e3);
-        setInterval(loadPings, 60000);
-        setInterval(function () { api.nodes().then(function (list) { if (list) { setNodes(list); renderAll(); } }).catch(function () { /* keep last */ }); }, 5 * 60000);
+        setInterval(function () { if (!document.hidden) loadTraffic(); }, 10 * 60e3);
+        setInterval(function () { if (!document.hidden) loadPings(); }, 60000);
+        setInterval(function () { if (!document.hidden) loadRates(); }, 60 * 60e3);
+        setInterval(function () { if (!document.hidden) api.nodes().then(function (list) { if (list) { setNodes(list); renderAll(); } }).catch(function () { /* keep last */ }); }, 5 * 60000);
+        document.addEventListener('visibilitychange', function () {
+          if (document.hidden) return;
+          if (ws && ws.readyState === 1) ws.send('get');
+          loadPings(); loadTraffic(); loadRates();
+          api.nodes().then(function (list) { if (list) { setNodes(list); renderAll(); } }).catch(function () { /* keep last */ });
+        });
       });
     }).catch(function (e) {
       if (e && e.status) privateNotice();
