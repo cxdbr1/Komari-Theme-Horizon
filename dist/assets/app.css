@@ -498,6 +498,19 @@ h1, h2, h3, p { font-size: inherit; font-weight: inherit; }
 .footer { line-height: 16px; }
 .footer a { text-decoration: underline; text-decoration-color: color-mix(in oklab, currentColor 35%, transparent); text-underline-offset: 2px; }
 .footer img { display: inline-block; max-height: 20px; vertical-align: middle; }
+
+.visitor-capsule, .back-top-btn { position: fixed; z-index: 50; border: 1px solid var(--monitor-border); background: var(--monitor-surface-1); color: var(--t-body); box-shadow: var(--shadow-xl); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .25s, transform .25s, visibility .25s; }
+.visitor-capsule { bottom: 30px; left: 50%; transform: translate(-50%, 12px); display: flex; align-items: center; gap: 7px; max-width: calc(100vw - 32px); border-radius: 6px; padding: 7px 12px; font-family: var(--font-mono); font-size: 11px; line-height: 16px; white-space: nowrap; }
+.visitor-capsule span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.visitor-capsule svg { width: 14px; height: 14px; flex: none; color: var(--t-blue); }
+.visitor-capsule.is-active { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+.back-top-btn { bottom: 30px; right: 30px; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 50%; transform: translateY(10px); cursor: pointer; }
+.back-top-btn svg { width: 18px; height: 18px; }
+.back-top-btn.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); }
+.back-top-btn:hover { border-color: var(--monitor-border-hover); color: var(--t-blue); }
+.back-top-btn:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; }
+@media (max-width: 600px) { .back-top-btn { bottom: 80px; right: 20px; } }
+@media (prefers-reduced-motion: reduce) { .visitor-capsule, .back-top-btn { transition: none; } }
 .m-icon-row { display: flex; align-items: center; gap: 8px; }
 .m-icon-row .m-input { flex: 1 1 auto; min-width: 0; }
 .m-fav { flex: none; width: 32px; height: 32px; padding: 4px; border-radius: 8px; border: 1px solid var(--monitor-border); background: var(--monitor-surface-1); object-fit: contain; }

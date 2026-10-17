@@ -354,6 +354,7 @@
     modal: null,
     valueShown: {},
     overviewAltCurrency: false,
+    visitorInfo: null,
     lang: 'en'
   };
   var LANG_KEY = 'komari-horizon-value-lang';
@@ -523,6 +524,7 @@
   }
   function shell() {
     var T = S.T;
+    var dashboard = !new URLSearchParams(location.search).has('view');
     $('#root').innerHTML =
       '<div class="monitor-app" data-layout="' + esc(T.cardDensity) + '">' +
         '<div class="bg-layer" id="bg-layer" aria-hidden="true"></div><div class="bg-veil" aria-hidden="true"></div>' +
@@ -530,6 +532,8 @@
         '<header class="monitor-header" data-product="' + esc(T.productLabel) + '">' + headerInner() + '</header>' +
         '<main class="monitor-page" id="page"></main>' +
         '<dialog class="gemini-modal node-details-modal monitor-surface-primary" id="modal" aria-labelledby="modal-title"></dialog>' +
+        (dashboard ? '<div class="visitor-capsule" data-visitor-ip role="status" aria-live="polite">' + icon('globe') + '<span data-visitor-label></span></div>' +
+          '<button type="button" class="back-top-btn" data-back-top aria-label="' + _t('Back to top', '返回顶部') + '" title="' + _t('Back to top', '返回顶部') + '">' + icon('arrow-up') + '</button>' : '') +
       '</div>';
     var header = $('.monitor-header');
     var setH = function () { $('.monitor-app').style.setProperty('--monitor-header-height', header.offsetHeight + 'px'); };
@@ -538,6 +542,43 @@
     applyBackground();
     startAmbient();
     window.addEventListener('resize', function () { applyBackground(); });
+  }
+  function renderVisitorInfo() {
+    var label = $('[data-visitor-label]'), info = S.visitorInfo;
+    if (!label || !info) return;
+    label.textContent = _t('Your IP: ', '您的 IP：') + info.ip +
+      (info.city ? ' · ' + info.city : '') + (info.isp ? ' · ' + info.isp : '');
+  }
+  function initDashboardUtilities() {
+    var bar = $('[data-visitor-ip]'), back = $('[data-back-top]');
+    if (!bar || !back) return;
+    function updateBack() { back.classList.toggle('is-visible', window.scrollY > 200); }
+    window.addEventListener('scroll', updateBack, { passive: true });
+    updateBack();
+    function lookup(url) {
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 6000);
+      return fetch(url, { signal: controller.signal }).then(function (r) {
+        if (!r.ok) throw new Error('visitor lookup failed');
+        return r.json();
+      }).finally(function () { clearTimeout(timeout); });
+    }
+    lookup('https://ipwho.is/?lang=zh-CN').then(function (d) {
+      if (!d || !d.success || !d.ip) throw new Error('visitor lookup failed');
+      return { ip: d.ip, city: d.city, isp: d.connection && d.connection.isp };
+    }).catch(function () {
+      return lookup('https://ipapi.co/json/').then(function (d) {
+        if (!d || !d.ip) throw new Error('visitor lookup failed');
+        return { ip: d.ip, city: d.city, isp: d.org };
+      });
+    }).then(function (d) {
+      S.visitorInfo = { ip: String(d.ip), city: String(d.city || ''), isp: String(d.isp || '') };
+      renderVisitorInfo();
+      setTimeout(function () {
+        bar.classList.add('is-active');
+        setTimeout(function () { bar.classList.remove('is-active'); }, 10000);
+      }, 1200);
+    }).catch(function () { /* optional visitor information */ });
   }
 
   function dashboardMarkup() {
@@ -648,6 +689,7 @@
   function onClick(e) {
     var t = e.target;
     if (t.closest('.manage-root')) return; // the settings page handles its own clicks
+    if (t.closest('[data-back-top]')) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (t.closest('[data-stat-currency-toggle]')) { toggleOverviewCurrency(); return; }
     var b = t.closest('[data-scheme]');
     if (b) { S.scheme = b.dataset.scheme; lsSet(SCHEME_KEY, S.scheme); applyScheme(); return; }
@@ -1919,7 +1961,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.3';
+    sc.src = '/assets/manage.js?v=1.9.4-value.4';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
@@ -1947,6 +1989,9 @@
   function setLang(l) {
     if (l !== 'zh' && l !== 'en') return;
     S.lang = l; lsSet(LANG_KEY, l); applyLangAttr();
+    renderVisitorInfo();
+    var back = $('[data-back-top]');
+    if (back) { back.setAttribute('aria-label', _t('Back to top', '返回顶部')); back.title = _t('Back to top', '返回顶部'); }
     var header = $('.monitor-header');
     if (header) { header.innerHTML = headerInner(); $('.monitor-app').style.setProperty('--monitor-header-height', header.offsetHeight + 'px'); }
     if (new URLSearchParams(location.search).get('view') === 'theme-manage') { if (KC.onLang) KC.onLang(); return; }
@@ -1975,6 +2020,7 @@
       S.sort = S.T.enableHomeSort && savedSort[0] ? { field: savedSort[0], dir: savedSort[1] === 'desc' ? 'desc' : 'asc' } : { field: S.T.homeSortField, dir: S.T.homeSortDirection };
       shell();
       bindEvents();
+      initDashboardUtilities();
       applyScheme();
       setInterval(function () { var c = $('#clock'); if (c) c.textContent = clock12(new Date(), true); }, 1000);
       var manage = new URLSearchParams(location.search).get('view') === 'theme-manage';
