@@ -352,6 +352,7 @@
     rates: DEFAULT_RATES, ratesLive: false,
     traffic: {}, trafficLoading: {}, speedHist: {},
     modal: null,
+    valueShown: {},
     lang: 'en'
   };
   var LANG_KEY = 'komari-horizon-lang';
@@ -615,6 +616,15 @@
       }
     });
     root.addEventListener('keydown', function (e) {
+      var toggle = e.target.closest && e.target.closest('[data-value-toggle]');
+      if (toggle) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!e.repeat) toggleValue(toggle.dataset.valueToggle);
+        }
+        return;
+      }
       var card = e.target.closest && e.target.closest('.node-monitor-card');
       if (card && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openModal(card.dataset.uuid); }
     });
@@ -652,8 +662,18 @@
     if (pt && S.modal) { var key = pt.dataset.ptoggle; S.modal[key] = !S.modal[key]; renderProbeChart(); return; }
     var ps = t.closest('[data-series]');
     if (ps && S.modal) { var id = ps.dataset.series; S.modal.hiddenSeries[id] = !S.modal.hiddenSeries[id]; renderProbeChart(); return; }
+    var valueToggle = t.closest('[data-value-toggle]');
+    if (valueToggle) {
+      e.stopPropagation();
+      toggleValue(valueToggle.dataset.valueToggle);
+      return;
+    }
     var card = t.closest('.node-monitor-card');
     if (card) openModal(card.dataset.uuid);
+  }
+  function toggleValue(uuid) {
+    S.valueShown[uuid] = !S.valueShown[uuid];
+    renderGrid();
   }
   function syncViewToggle() {
     document.querySelectorAll('.view-toggle button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === S.view)); });
@@ -1112,10 +1132,23 @@
   function footerHTML(n, opts) {
     var tags = opts && opts.noTags ? [] : parseTags(n.tags);
     var bill = opts && opts.noBilling ? { text: '' } : billing(n);
-    if (!tags.length && !bill.text) return '';
+    var canToggle = !(opts && opts.noBilling) && canSeeCosts();
+    if (!tags.length && !bill.text && !canToggle) return '';
+    var showValue = canToggle && !!S.valueShown[n.uuid];
+    var amount = toBase(bill.remaining, bill.code);
+    var base = String(S.T.baseCurrency || 'USD').toUpperCase();
+    var expires = n.expired_at ? new Date(n.expired_at) : null;
+    var hasExpiry = expires && !isNaN(expires.getTime()) && expires.getFullYear() >= 2000 && expires.getFullYear() < 2099;
+    var price = Number(n.price);
+    var value = !isFinite(price) || price === 0 ? _t('No billing', '未配置账单') :
+      price === -1 ? money(0, base) :
+      !hasExpiry || num(n.billing_cycle) <= 0 ? _t('Unavailable', '暂无到期日') :
+      money(amount == null ? bill.remaining : amount, amount == null ? bill.code : base);
+    var label = showValue ? _t('Remaining Value: ', '剩余价值：') + value : bill.text || _t('No billing', '未配置账单');
+    var title = showValue ? _t('Remaining service value. Click to show billing.', '剩余服务价值，点击查看账单。') : (bill.title ? bill.title + ' · ' : '') + _t('Click to show remaining value', '点击查看剩余价值');
     return '<div class="node-asset-footer monitor-divider">' +
       (tags.length ? '<div class="node-tags" aria-label="' + _t('Tags', '标签') + '">' + tags.map(function (t) { return '<span class="node-tag">#' + esc(t) + '</span>'; }).join('') + '</div>' : '') +
-      (bill.text ? '<span class="node-asset-summary" data-expiry-status="' + bill.status + '" title="' + esc(bill.title) + '" aria-label="' + esc(bill.title) + '">' + esc(bill.text) + '</span>' : '') +
+      (canToggle ? '<button type="button" class="node-asset-summary" data-value-toggle="' + esc(n.uuid) + '" data-expiry-status="' + (showValue ? 'none' : bill.status) + '" aria-pressed="' + showValue + '" title="' + esc(title) + '" aria-label="' + esc(label) + '">' + esc(label) + '</button>' : bill.text ? '<span class="node-asset-summary" data-expiry-status="' + bill.status + '" title="' + esc(bill.title) + '" aria-label="' + esc(bill.title) + '">' + esc(bill.text) + '</span>' : '') +
     '</div>';
   }
 
