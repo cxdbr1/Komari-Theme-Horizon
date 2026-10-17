@@ -354,6 +354,7 @@
     modal: null,
     valueShown: {},
     overviewAltCurrency: false,
+    overviewValueMode: 0,
     visitorInfo: null,
     lang: 'en'
   };
@@ -666,6 +667,14 @@
         }
         return;
       }
+      if (e.target.closest && e.target.closest('[data-stat-view-toggle]')) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!e.repeat) toggleOverviewMode();
+        }
+        return;
+      }
       var toggle = e.target.closest && e.target.closest('[data-value-toggle]');
       if (toggle) {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -691,6 +700,7 @@
     if (t.closest('.manage-root')) return; // the settings page handles its own clicks
     if (t.closest('[data-back-top]')) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (t.closest('[data-stat-currency-toggle]')) { toggleOverviewCurrency(); return; }
+    if (t.closest('.remaining-value-card')) { toggleOverviewMode(); return; }
     var b = t.closest('[data-scheme]');
     if (b) { S.scheme = b.dataset.scheme; lsSet(SCHEME_KEY, S.scheme); applyScheme(); return; }
     var lg = t.closest('[data-lang]');
@@ -734,6 +744,12 @@
     S.overviewAltCurrency = !S.overviewAltCurrency;
     renderStats();
     var button = document.querySelector('[data-stat-currency-toggle]');
+    if (button) button.focus();
+  }
+  function toggleOverviewMode() {
+    S.overviewValueMode = (S.overviewValueMode + 1) % 3;
+    renderStats();
+    var button = document.querySelector('[data-stat-view-toggle]');
     if (button) button.focus();
   }
   function syncViewToggle() {
@@ -1024,13 +1040,16 @@
       ratingTag('traffic', tin + tout, [500 * GB, 2000 * GB, 10000 * GB])));
     if (T.showRemainingValue && canSeeCosts()) {
       var nextCurrency = base === 'CNY' ? configured === 'CNY' ? 'USD' : configured : 'CNY';
-      panels.push('<button type="button" class="public-stat-panel remaining-value-card monitor-surface-primary monitor-hover" data-stat-currency-toggle aria-pressed="' + S.overviewAltCurrency + '" aria-label="' + esc(_t('Remaining value, monthly and annual cost in ' + base + '. Switch to ' + nextCurrency, '剩余价值、月化和年化费用，币种 ' + base + '。点击切换为 ' + nextCurrency)) + '" title="' + esc(_t('Switch to ' + nextCurrency, '切换为 ' + nextCurrency)) + '"><div class="remaining-label">' + _t('Remaining Value', '剩余价值') + '</div>' +
-        '<div class="stat-value" style="margin-top:8px">' + (SYMBOL[base] || '') + value.toFixed(2) + '</div>' +
-        '<span class="remaining-cur" role="status" title="' + _t('Estimated remaining service value in ' + esc(base) + (S.ratesLive ? ' (live rates).' : ' (approximate rates).'), '按' + (S.ratesLive ? '实时' : '近似') + '汇率折算的剩余服务价值（' + esc(base) + '）') + '">' + esc(base) + '</span>' +
-        '<div class="remaining-costs" title="' + esc(_t('Recurring billing converted to a 365-day year; monthly average is one twelfth.', '经常性账单按 365 天折算年化，月化为年化的十二分之一。')) + '">' +
-        '<span>' + _t('Monthly', '月化') + '<strong data-monthly-cost>' + (SYMBOL[base] || '') + (annual / 12).toFixed(2) + '</strong></span>' +
-        '<span>' + _t('Annual', '年化') + '<strong data-annual-cost>' + (SYMBOL[base] || '') + annual.toFixed(2) + '</strong></span></div>' +
-        ratingTag('asset', value, [cny(500), cny(1500), cny(3000)]) + '</button>');
+      var modes = [[_t('Remaining Value', '剩余价值'), value, ''], [_t('Monthly', '月'), annual / 12, _t('/mo', '/月')], [_t('Annual', '年'), annual, _t('/yr', '/年')]];
+      var selected = modes[S.overviewValueMode], next = modes[(S.overviewValueMode + 1) % modes.length][0];
+      panels.push('<div class="public-stat-panel remaining-value-card monitor-surface-primary monitor-hover">' +
+        '<button type="button" class="remaining-main" data-stat-view-toggle aria-label="' + esc(selected[0] + ' ' + (SYMBOL[base] || '') + selected[1].toFixed(2) + selected[2] + '. ' + _t('Switch to ', '点击显示') + next) + '"' +
+        ' title="' + esc(_t('Switch to ', '切换为') + next) + '"><span class="remaining-label">' + selected[0] + '</span>' +
+        '<span class="stat-value" style="margin-top:8px">' + (SYMBOL[base] || '') + selected[1].toFixed(2) + (selected[2] ? '<span class="stat-unit">' + selected[2] + '</span>' : '') + '</span></button>' +
+        '<div class="remaining-card-footer"><button type="button" class="remaining-cur" data-stat-currency-toggle aria-pressed="' + S.overviewAltCurrency + '"' +
+        ' aria-label="' + esc(_t('Currency ' + base + '. Switch to ' + nextCurrency, '当前币种 ' + base + '，点击切换为 ' + nextCurrency)) + '"' +
+        ' title="' + esc(_t('Switch to ' + nextCurrency, '切换为 ' + nextCurrency)) + '">' + esc(base) + '</button>' +
+        (S.overviewValueMode === 0 ? ratingTag('asset', value, [cny(500), cny(1500), cny(3000)]) : '') + '</div></div>');
     }
     setHTML(box, panels.join(''));
   }
@@ -1961,7 +1980,7 @@
       return;
     }
     var sc = document.createElement('script');
-    sc.src = '/assets/manage.js?v=1.9.4-value.4';
+    sc.src = '/assets/manage.js?v=1.9.4-value.5';
     sc.onload = function () { window.KHorizonManage(page, KC); };
     sc.onerror = function () { page.innerHTML = '<div class="container"><div class="banner monitor-surface-primary">' + _t('Could not load manage.js', '无法加载 manage.js') + '</div></div>'; };
     document.head.appendChild(sc);
